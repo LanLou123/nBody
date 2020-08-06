@@ -1,0 +1,32 @@
+#version 450 core
+
+layout (local_size_x = 256) in;
+
+layout (binding = 0, std430) buffer _particle_pos
+{
+	vec4 particle_pos[];
+};
+
+layout (binding = 1, std430) buffer _particle_vel
+{
+	vec4 particle_vel[];
+};
+
+uniform int particle_count;
+
+void main(){
+
+	float damp = 0.9999;
+	float dt = 0.00001;
+
+
+	uint id = gl_GlobalInvocationID.x;
+
+	vec3 pos_ori = particle_pos[id].xyz;
+
+	vec3 pos_out = particle_pos[id].xyz + dt * particle_vel[id].xyz;
+
+	float m = particle_pos[id].w;
+
+	particle_pos[id] += vec4( dt * particle_vel[id].xyz, 0);
+}
