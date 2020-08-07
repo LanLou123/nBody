@@ -26,6 +26,7 @@ static glm::vec2 m_pos = glm::vec2(0.f);
 static glm::vec2 m_delta = glm::vec2(0.f);
 static bool m_pressed = false;
 static int particle_num = WORKGROUP_SIZE * 200;
+static bool paused = false;
 const float PI = 3.14159265358979323846;
 
 std::uniform_real_distribution<double> distribution(0.0, 1.0);
@@ -437,12 +438,15 @@ int main()
 
     while (!glfwWindowShouldClose(window))
     {
-
+        // input
+        // -----
+        processInput(window);
+   
 
         glViewport(0, 0, SCR_WIDTH * dy_factor, SCR_HEIGHT * dy_factor);
         auto _cur_timer = std::chrono::steady_clock::now();
         auto _elapsed_time = std::chrono::duration_cast<std::chrono::milliseconds>(_cur_timer - _pre_timer).count();
-       std::cout << 1000.0f / _elapsed_time << std::endl;
+        std::cout << 1000.0f / _elapsed_time << std::endl;
         _pre_timer = _cur_timer;
 
         // per-frame time logic
@@ -453,9 +457,7 @@ int main()
         lastFrame = currentFrame;
         //std::cout << "GLFW time : " << deltaTime << std::endl;
 
-        // input
-        // -----
-        processInput(window);
+
 
         // compute particles
         // -----
@@ -535,6 +537,8 @@ void processInput(GLFWwindow *window)
         camera.ProcessKeyboard(LEFT, deltaTime);
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
         camera.ProcessKeyboard(RIGHT, deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS)
+        paused = !paused;
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes

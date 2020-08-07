@@ -16,7 +16,7 @@ layout (binding = 1, std430) buffer _particle_vel
 shared vec4 pos_cache[gl_WorkGroupSize.x];
 
 vec3 force(in vec3 dis, in float m){
-	return m * dis / pow(dot(dis, dis) + 1.003, 1.3f);
+	return m * dis / pow(dot(dis, dis) + 2.003, 1.2f);
 }
 
 uniform float particle_count;															  //position cache in shared memory for faster access
@@ -25,8 +25,8 @@ uniform float particle_count;															  //position cache in shared memory 
 void main(){
 
 	float damp = 0.99999;
-	float dt = 0.0001;
-	float G = 150.0f;
+	float dt = 0.0005;
+	float G = 70.0f;
 
 	uint id = gl_GlobalInvocationID.x;
 	vec3 pos;
