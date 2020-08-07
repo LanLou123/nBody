@@ -5,3 +5,4 @@ A simple nBody Simulator
 
 ![](galaxy.gif)
 
+![](galaxy1.gif)

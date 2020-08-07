@@ -34,7 +34,20 @@ mt19937 rng;
 
 #define Render_rs 0
 
+// settings
+const unsigned int SCR_WIDTH = 1920;
+const unsigned int SCR_HEIGHT = 1080;
 
+// camera
+Camera camera(glm::vec3(0.0f, 20.0f, 45.0f));
+
+float lastX = (float)SCR_WIDTH / 2.0;
+float lastY = (float)SCR_HEIGHT / 2.0;
+bool firstMouse = true;
+
+// timing
+float deltaTime = 0.0f;
+float lastFrame = 0.0f;
 
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
@@ -186,7 +199,7 @@ private:
         glm::vec4 tang_vel = glm::vec4(glm::normalize(glm::cross(glm::vec3(0, 1, 0), glm::vec3(_pos))), 0.0f);
         float dis = glm::distance(glm::vec3(_pos), glm::vec3(0));
         glm::vec3 tang_vel_unormalize = glm::cross(glm::vec3(0, 1, 0), glm::vec3(_pos));
-        return tang_vel*dis*30.f;
+        return tang_vel * dis * 60.f;
         //return glm::vec3(0,0,100);
     }
 
@@ -198,21 +211,55 @@ private:
     }
 };
 
+struct GframeBuffer {
+    GLuint gBuffer, color_tex, brightness_tex;
+    void initialize_fbo() {
+        glGenFramebuffers(1, &gBuffer);
+        glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
+        glGenTextures(1, &color_tex);
+        glBindTexture(GL_TEXTURE_2D, color_tex);
+        glTexImage2D( GL_TEXTURE_2D, 0, GL_RGBA16F, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, color_tex, 0);
+        glGenTextures(1, &brightness_tex);
+        glBindTexture(GL_TEXTURE_2D, brightness_tex);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, brightness_tex, 0);
+        GLuint attachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
+        glDrawBuffers(2, attachments);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    }
+    GframeBuffer() { initialize_fbo(); }
+};
+
 // renderQuad() renders a 1x1 XY quad in NDC
 // -----------------------------------------
 struct Quad {
+    bool render_instanced;
     unsigned int quadVAO = 0;
     unsigned int quadVBO;
-    void renderQuad(float resolution_fac = 1.0)
+    void renderQuad(GLuint instanced_buffer_pos_handle = 0, GLuint instanced_buffer_vel_handle = 0)
     {
         if (quadVAO == 0)
         {
+            float size_fac = 0.05;
+            if (!render_instanced) {
+                size_fac = 1.0f;
+            }
+            float resolution_fac = 1.0;
             float quadVertices[] = {
                 // positions        // texture Coords
-                -1.0f,  1.0f, 0.0f, 0.0f * resolution_fac, 1.0f * resolution_fac,
-                -1.0f, -1.0f, 0.0f, 0.0f * resolution_fac, 0.0f * resolution_fac,
-                 1.0f,  1.0f, 0.0f, 1.0f * resolution_fac, 1.0f * resolution_fac,
-                 1.0f, -1.0f, 0.0f, 1.0f * resolution_fac, 0.0f * resolution_fac,
+                -1.0f * size_fac,  1.0f * size_fac, 0.0f * size_fac, 0.0f * resolution_fac, 1.0f * resolution_fac,
+                -1.0f * size_fac, -1.0f * size_fac, 0.0f * size_fac, 0.0f * resolution_fac, 0.0f * resolution_fac,
+                 1.0f * size_fac,  1.0f * size_fac, 0.0f * size_fac, 1.0f * resolution_fac, 1.0f * resolution_fac,
+                 1.0f * size_fac, -1.0f * size_fac, 0.0f * size_fac, 1.0f * resolution_fac, 0.0f * resolution_fac,
             };
             // setup plane VAO
             glGenVertexArrays(1, &quadVAO);
@@ -224,8 +271,23 @@ struct Quad {
             glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
             glEnableVertexAttribArray(1);
             glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+            if (render_instanced) {
+                glEnableVertexAttribArray(2);
+                glBindBuffer(GL_ARRAY_BUFFER, instanced_buffer_pos_handle);
+                glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+                glBindBuffer(GL_ARRAY_BUFFER, 0);
+                glEnableVertexAttribArray(3);
+                glBindBuffer(GL_ARRAY_BUFFER, instanced_buffer_vel_handle);
+                glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+                glBindBuffer(GL_ARRAY_BUFFER, 0);
+                glVertexAttribDivisor(2, 1);
+                glVertexAttribDivisor(3, 1);
+            }
         }
         glBindVertexArray(quadVAO);
+        if (render_instanced)
+            glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, particle_num);
+        else
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
         glBindVertexArray(0);
     }
@@ -233,25 +295,10 @@ struct Quad {
         glDeleteBuffers(1, &quadVAO);
         glDeleteBuffers(1, &quadVBO);
     }
-    Quad() {};
+    Quad(bool _instanced = false) : render_instanced(_instanced ) {};
 };
 
-// settings
-const unsigned int SCR_WIDTH = 1920;
-const unsigned int SCR_HEIGHT = 1080;
 
-// camera
-Camera camera(glm::vec3(0.0f, 20.0f, 45.0f));
-
-float lastX = (float)SCR_WIDTH / 2.0;
-float lastY = (float)SCR_HEIGHT / 2.0;
-bool firstMouse = true;
-
-// timing
-float deltaTime = 0.0f;
-float lastFrame = 0.0f;
-
-Quad my_quad;
 
 void createFluidTexture(GLuint& _tex) {
     glGenTextures(1, &_tex);
@@ -356,13 +403,17 @@ int main()
     // -----------
 
     nBody_particles myNbody;
+    Quad sprite_quad(true);
+    Quad fullscreen_quad;
     Cube myCube;
+    GframeBuffer my_fbo;
+   
 
     // render loop
     // -----------
 
     auto _pre_timer = std::chrono::steady_clock::now();
-    glPointSize(2);
+    glPointSize(1.5);
 
     while (!glfwWindowShouldClose(window))
     {
@@ -420,14 +471,23 @@ int main()
 
         // ----visulize here---
         glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        
+        //glBindFramebuffer(GL_FRAMEBUFFER, my_fbo.gBuffer);
+
         shaderNbody.use();
         shaderNbody.setMat4("projection", projection);
         shaderNbody.setMat4("view", view);
         shaderNbody.setVec3("viewPos", camera.Position);
+        glm::mat3 camera_axes = glm::mat3({ camera.Right.x, camera.Right.y, camera.Right.z,
+           camera.Up.x, camera.Up.y, camera.Up.z,
+            camera.Front.x, camera.Front.y, camera.Front.z });
+        shaderNbody.setMat3("camera_axes", camera_axes);
         model = glm::mat4(1.0f);
         shaderNbody.setMat4("model", model);
-        myNbody.draw();
-        //my_quad.renderQuad(dy_factor);
+        sprite_quad.renderQuad(myNbody._particle_pos_buffer, myNbody._particle_vel_buffer);
+
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
         glfwSwapBuffers(window);
@@ -435,7 +495,6 @@ int main()
     }
 
  
-    my_quad.destroyQuad();
     glfwTerminate();
     //_CrtDumpMemoryLeaks();
     return 0;
