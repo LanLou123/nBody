@@ -22,6 +22,7 @@ void main()
     vel_ = vel.xyz;
     TexCoords = texCoords;
     m = aPos.w;
-    vec3 quad_pos = m * qPos.x * camera_axes[0] + m * qPos.y * camera_axes[1];
+    float size = 2.0;
+    vec3 quad_pos = size * m * qPos.x * camera_axes[0] + size * m * qPos.y * camera_axes[1];
     gl_Position = projection * view * model * vec4(quad_pos + aPos.xyz, 1.0);
 }

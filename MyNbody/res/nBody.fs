@@ -58,5 +58,5 @@ void main()
         _star_col = star_col_10;
 	}
 
-    FragColor = vec4(5.0f * l2c * m * _star_col * 1.2, l2c);
+    FragColor = vec4(10.0f * l2c * m * _star_col * 1.2, l2c);
 }

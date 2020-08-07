@@ -39,7 +39,7 @@ const unsigned int SCR_WIDTH = 1920;
 const unsigned int SCR_HEIGHT = 1080;
 
 // camera
-Camera camera(glm::vec3(0.0f, 20.0f, 45.0f));
+Camera camera(glm::vec3(0.0f, 40.0f, 65.0f));
 
 float lastX = (float)SCR_WIDTH / 2.0;
 float lastY = (float)SCR_HEIGHT / 2.0;
@@ -177,36 +177,56 @@ public:
     }
 public:
     GLuint _particle_pos_buffer, _particle_vel_buffer, VAO;
+    struct galaxy {
+        glm::vec3 g_center;
+        glm::vec3 g_velocity;
+        int num_stars;
+        galaxy():g_center(glm::vec3(0)), g_velocity(glm::vec3(0)), num_stars(particle_num) {}
+        galaxy(glm::vec3 _center, glm::vec3 _velocity, int _num_stars) : 
+            g_center(_center), g_velocity(_velocity), num_stars(_num_stars)
+        {}  
+        glm::vec4 get_rnd_pos() {
+            float rng1 = distribution(rng) * 2.f * PI;
+            float rng2 = distribution(rng);
+            float rng3 = distribution(rng);
+            float rng4 = distribution(rng);
+            rng4 = (rng4 + 1.0f) / 2.0f;// 0.5 ~ 1.0
+            glm::vec4 rnd_pos =  glm::vec4(cos(rng1) * rng2 * 20.0f,rng3 * 1.0f, sin(rng1) * rng2 * 20.0f, rng4);
+            rnd_pos += glm::vec4(g_center, 0.f);   //galaxy 1 center
+            return rnd_pos;
+        }
+        glm::vec4 get_rnd_vel( const glm::vec4& _pos) {
+            float r =1 - distribution(rng)/50.0f;
+            glm::vec4 tang_vel = glm::vec4(glm::normalize(glm::cross(glm::vec3(0, 1, 0), glm::vec3(_pos) - g_center)), 0.0f);
+            float dis = glm::distance(glm::vec3(_pos), g_center);
+            glm::vec4 rnd_vel = tang_vel * dis * 60.f;
+
+            rnd_vel += glm::vec4(g_velocity, 0.0f);   //galaxy 1 center
+
+            return rnd_vel;
+            //return glm::vec3(0,0,100);
+        }
+    };
     
 private:
 
     vector<glm::vec4> particle_pos;
     vector<glm::vec4> particle_vel;
+    galaxy g1 = galaxy(glm::vec3(40, 40, 20), glm::vec3(0, 0, 0), particle_num / 2);
+    galaxy g2 = galaxy(-glm::vec3(40, 20, 20), -glm::vec3(0, 0, 0), particle_num / 2);
 
-    glm::vec4 get_rnd_pos() {
-        float rng1 = distribution(rng) * 2.f * PI;
-        float rng2 = distribution(rng);
-        float rng3 = distribution(rng);
-        float rng4 = distribution(rng);
-        rng4 = (rng4 + 1.0f) / 2.0f;// 0.5 ~ 1.0
-        return glm::vec4(cos(rng1) * rng2 * 20.0f,
-            rng3 * 1.0f,
-            sin(rng1) * rng2 * 20.0f,
-            rng4);
-    }
-    glm::vec4 get_rnd_vel(const glm::vec4& _pos) {
-        float r =1 - distribution(rng)/50.0f;
-        glm::vec4 tang_vel = glm::vec4(glm::normalize(glm::cross(glm::vec3(0, 1, 0), glm::vec3(_pos))), 0.0f);
-        float dis = glm::distance(glm::vec3(_pos), glm::vec3(0));
-        glm::vec3 tang_vel_unormalize = glm::cross(glm::vec3(0, 1, 0), glm::vec3(_pos));
-        return tang_vel * dis * 60.f;
-        //return glm::vec3(0,0,100);
-    }
+
 
     void populate_buffers() {
         for (int i = 0; i < particle_num; ++i) {
-            particle_pos[i] = get_rnd_pos();
-            particle_vel[i] = get_rnd_vel(particle_pos[i]);
+            if (i <= particle_num / 2) {
+                particle_pos[i] = g1.get_rnd_pos();
+                particle_vel[i] = g1.get_rnd_vel(particle_pos[i]);
+            }
+            else {
+                particle_pos[i] = g2.get_rnd_pos();
+                particle_vel[i] = g2.get_rnd_vel(particle_pos[i]);
+            }
         }
     }
 };
