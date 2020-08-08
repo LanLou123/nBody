@@ -58,7 +58,7 @@ void main()
         _star_col = star_col_10;
 	}
 
-    Color = vec4(10.0f * l2c  * _star_col * 1.2, l2c);
+    Color = vec4(10.0f * l2c *(mass + 1.0f)  * _star_col * 1.2, l2c);
 
     float brightness = dot(Color.rgb, vec3(0.2126, 0.7152, 0.0722));
 

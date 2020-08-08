@@ -220,14 +220,14 @@ private:
 
     void populate_buffers() {
         for (int i = 0; i < particle_num; ++i) {
-            //if (i <= particle_num / 2) {
-            //    particle_pos[i] = g1.get_rnd_pos();
-            //    particle_vel[i] = g1.get_rnd_vel(particle_pos[i]);
-            //}
-            //else {
+            if (i <= particle_num / 2) {
+                particle_pos[i] = g1.get_rnd_pos();
+                particle_vel[i] = g1.get_rnd_vel(particle_pos[i]);
+            }
+            else {
                 particle_pos[i] = g2.get_rnd_pos();
                 particle_vel[i] = g2.get_rnd_vel(particle_pos[i]);
-            //}
+            }
         }
     }
 };
