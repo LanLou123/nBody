@@ -64,7 +64,7 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\src\Fluid.cpp">
+    <ClCompile Include="..\src\Nbody.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
