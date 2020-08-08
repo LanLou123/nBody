@@ -191,7 +191,7 @@ public:
             float rng2 = distribution(rng);
             float rng3 = distribution(rng);
             float rng4 = distribution(rng);
-            rng4 = (rng4 + 1.0f) / 2.0f;// 0.5 ~ 1.0
+            rng4 = pow((rng4 + 1.0f) / 2.0f,1.0f);// 0.5 ~ 1.0
             glm::vec4 rnd_pos =  glm::vec4(cos(rng1) * rng2 * 20.0f,rng3 * 1.0f, sin(rng1) * rng2 * 20.0f, rng4);
             rnd_pos += glm::vec4(g_center, 0.f);   //galaxy 1 center
             return rnd_pos;
@@ -203,7 +203,7 @@ public:
             glm::vec4 rnd_vel = tang_vel * dis * 60.f;
 
             rnd_vel += glm::vec4(g_velocity, 0.0f);   //galaxy 1 center
-
+            rnd_vel.w = log(_pos.w * 2.0f * 1.0);
             return rnd_vel;
             //return glm::vec3(0,0,100);
         }
@@ -220,20 +220,20 @@ private:
 
     void populate_buffers() {
         for (int i = 0; i < particle_num; ++i) {
-            if (i <= particle_num / 2) {
-                particle_pos[i] = g1.get_rnd_pos();
-                particle_vel[i] = g1.get_rnd_vel(particle_pos[i]);
-            }
-            else {
+            //if (i <= particle_num / 2) {
+            //    particle_pos[i] = g1.get_rnd_pos();
+            //    particle_vel[i] = g1.get_rnd_vel(particle_pos[i]);
+            //}
+            //else {
                 particle_pos[i] = g2.get_rnd_pos();
                 particle_vel[i] = g2.get_rnd_vel(particle_pos[i]);
-            }
+            //}
         }
     }
 };
 
 struct GframeBuffer {
-    GLuint gBuffer, color_tex, brightness_tex;
+    GLuint gBuffer, color_tex, brightness_tex, rboDepth;
     void initialize_fbo() {
         glGenFramebuffers(1, &gBuffer);
         glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
@@ -255,9 +255,38 @@ struct GframeBuffer {
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, brightness_tex, 0);
         GLuint attachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
         glDrawBuffers(2, attachments);
+        glGenRenderbuffers(1, &rboDepth);
+        glBindRenderbuffer(GL_RENDERBUFFER, rboDepth);
+        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, SCR_WIDTH, SCR_HEIGHT);
+        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rboDepth);
+        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+            std::cout << "Framebuffer not complete!" << std::endl;
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
     GframeBuffer() { initialize_fbo(); }
+};
+
+//blur fbos
+struct BlurFrameBuffers {
+    GLuint pingpongFBO[2], pingpongColorTex[2];
+    void initialize_fbos(){
+        glGenFramebuffers(2, pingpongFBO);
+        glGenTextures(2, pingpongColorTex);
+        for (int i = 0; i < 2; ++i) {
+            glBindFramebuffer(GL_FRAMEBUFFER, pingpongFBO[i]);
+            glBindTexture(GL_TEXTURE_2D, pingpongColorTex[i]);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // we clamp to the edge as the blur filter would otherwise sample repeated texture values!
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, pingpongColorTex[i], 0);
+            if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+                std::cout << "Framebuffer not complete!" << std::endl;
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        }
+    }
+    BlurFrameBuffers() { initialize_fbos(); }
 };
 
 // renderQuad() renders a 1x1 XY quad in NDC
@@ -390,6 +419,8 @@ int main()
     // -------------------------
 
     Shader shaderNbody("../res/nBody.vs", "../res/nBody.fs");
+    Shader shaderBloom("../res/bloom.vs", "../res/bloom.fs");
+    Shader shaderBlur("../res/blur.vs", "../res/blur.fs");
 
     Shader shaderVelocityUpdate("../res/velocityUpdate.comp");
     Shader shaderPositionUpdate("../res/positionUpdate.comp");
@@ -428,6 +459,7 @@ int main()
     Quad fullscreen_quad;
     Cube myCube;
     GframeBuffer my_fbo;
+    BlurFrameBuffers blur_fbo;
    
 
     // render loop
@@ -493,11 +525,12 @@ int main()
 
         // ----visulize here---
         glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
+
+        
+        glBindFramebuffer(GL_FRAMEBUFFER, my_fbo.gBuffer);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        
-        //glBindFramebuffer(GL_FRAMEBUFFER, my_fbo.gBuffer);
-
         shaderNbody.use();
         shaderNbody.setMat4("projection", projection);
         shaderNbody.setMat4("view", view);
@@ -509,6 +542,42 @@ int main()
         model = glm::mat4(1.0f);
         shaderNbody.setMat4("model", model);
         sprite_quad.renderQuad(myNbody._particle_pos_buffer, myNbody._particle_vel_buffer);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+        // bloom blur pass
+
+        bool horizontal = true, first_iter = true;
+        unsigned int amount = 10;
+        shaderBlur.use();
+        for (unsigned int i = 0; i < amount; ++i) {
+            glBindFramebuffer(GL_FRAMEBUFFER, blur_fbo.pingpongFBO[horizontal]);
+            //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            //glEnable(GL_BLEND);
+            //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            shaderBlur.setInt("horizontal", horizontal);
+            shaderBlur.setInt("image", 0);
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, first_iter ? my_fbo.brightness_tex : blur_fbo.pingpongColorTex[!horizontal]);
+            fullscreen_quad.renderQuad();
+            horizontal = !horizontal;
+            if (first_iter) first_iter = false;
+        }
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+        // bloom pass
+        shaderBloom.use();
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, my_fbo.color_tex);
+        shaderBloom.setInt("color_tex", 0);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, blur_fbo.pingpongColorTex[!horizontal]);
+        shaderBloom.setInt("blur_tex", 1);
+
+        fullscreen_quad.renderQuad();
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------

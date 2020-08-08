@@ -1,6 +1,6 @@
 #version 430 core
-out vec4 FragColor;
-//layout (location = 0) out vec4 FragColor;
+//out vec4 FragColor;
+layout (location = 0) out vec4 Color;
 layout (location = 1) out vec4 BrightColor;
 
 
@@ -58,5 +58,12 @@ void main()
         _star_col = star_col_10;
 	}
 
-    FragColor = vec4(10.0f * l2c * m * _star_col * 1.2, l2c);
+    Color = vec4(10.0f * l2c  * _star_col * 1.2, l2c);
+
+    float brightness = dot(Color.rgb, vec3(0.2126, 0.7152, 0.0722));
+
+    if(brightness > 1.0)
+        BrightColor = vec4(Color.rgb/1.1, 1.0);
+    else
+        BrightColor = vec4(0.0,0.0,0.0,1.0);
 }

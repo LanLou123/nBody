@@ -50,6 +50,18 @@
     <None Include="..\res\velocityUpdate.comp">
       <Filter>Resource Files</Filter>
     </None>
+    <None Include="..\res\bloom.fs">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="..\res\bloom.vs">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="..\res\blur.fs">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="..\res\blur.vs">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\Fluid.cpp">

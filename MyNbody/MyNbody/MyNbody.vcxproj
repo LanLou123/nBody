@@ -153,6 +153,10 @@
     <ClInclude Include="..\includes\utils\shader_s.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\res\bloom.fs" />
+    <None Include="..\res\bloom.vs" />
+    <None Include="..\res\blur.fs" />
+    <None Include="..\res\blur.vs" />
     <None Include="..\res\nBody.fs" />
     <None Include="..\res\nBody.vs" />
     <None Include="..\res\positionUpdate.comp" />

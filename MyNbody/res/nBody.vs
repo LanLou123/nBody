@@ -9,6 +9,7 @@ layout (location = 3) in vec4 vel;
 out vec3 FragPos;
 out vec3 vel_;
 out float m;
+out float m_pow;
 out vec2 TexCoords;
 
 uniform mat4 model;
@@ -22,7 +23,8 @@ void main()
     vel_ = vel.xyz;
     TexCoords = texCoords;
     m = aPos.w;
-    float size = 2.0;
+    m_pow = vel.w;
+    float size = 1.0;
     vec3 quad_pos = size * m * qPos.x * camera_axes[0] + size * m * qPos.y * camera_axes[1];
     gl_Position = projection * view * model * vec4(quad_pos + aPos.xyz, 1.0);
 }
