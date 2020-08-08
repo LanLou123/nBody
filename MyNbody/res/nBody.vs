@@ -23,6 +23,7 @@ void main()
     vel_ = vel.xyz;
     TexCoords = texCoords;
     m = aPos.w;
+    m = min(1.0, m);
     m_pow = vel.w;
     float size = 1.0;
     vec3 quad_pos = size * m * qPos.x * camera_axes[0] + size * m * qPos.y * camera_axes[1];

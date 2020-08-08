@@ -7,6 +7,7 @@ layout (location = 1) out vec4 BrightColor;
 in vec3 vel_;
 in float m;
 in vec2 TexCoords;
+in float m_pow;
 
 uniform vec3 viewPos;
 
@@ -58,7 +59,7 @@ void main()
         _star_col = star_col_10;
 	}
 
-    Color = vec4(10.0f * l2c *(mass + 1.0f) /2.0  * _star_col * 1.2, l2c);
+    Color = vec4(10.0f * l2c *(1.f + 1.0f) /2.0  * _star_col * 1.2 , l2c);
 
     float brightness = dot(Color.rgb, vec3(0.2126, 0.7152, 0.0722));
 

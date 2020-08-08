@@ -186,7 +186,7 @@ public:
         galaxy(glm::vec3 _center, glm::vec3 _velocity, int _num_stars) : 
             g_center(_center), g_velocity(_velocity), num_stars(_num_stars)
         {}  
-        glm::vec4 get_rnd_pos() {
+        glm::vec4 get_rnd_pos(const int i) {
             float rng1 = distribution(rng) * 2.f * PI;
             float rng2 = distribution(rng);
             float rng3 = distribution(rng);
@@ -194,16 +194,23 @@ public:
             rng4 = pow((rng4 + 1.0f) / 2.0f,1.0f);// 0.5 ~ 1.0
             glm::vec4 rnd_pos =  glm::vec4(cos(rng1) * rng2 * 20.0f,rng3 * 1.0f, sin(rng1) * rng2 * 20.0f, rng4);
             rnd_pos += glm::vec4(g_center, 0.f);   //galaxy 1 center
+            if (i == 0 || i == particle_num/2) {
+                rnd_pos.x = g_center.x;
+                rnd_pos.y = g_center.y;
+                rnd_pos.z = g_center.z;
+                rnd_pos.w = 1000.0f; };
             return rnd_pos;
         }
-        glm::vec4 get_rnd_vel( const glm::vec4& _pos) {
+        glm::vec4 get_rnd_vel( const glm::vec4& _pos, const int i) {
             float r =1 - distribution(rng)/50.0f;
             glm::vec4 tang_vel = glm::vec4(glm::normalize(glm::cross(glm::vec3(0, 1, 0), glm::vec3(_pos) - g_center)), 0.0f);
             float dis = glm::distance(glm::vec3(_pos), g_center);
-            glm::vec4 rnd_vel = tang_vel * dis * 60.f;
+            glm::vec4 rnd_vel = tang_vel * (dis) * 60.f;
 
             rnd_vel += glm::vec4(g_velocity, 0.0f);   //galaxy 1 center
+            if (i == 0 || i == particle_num / 2) rnd_vel = glm::vec4(0);
             rnd_vel.w = log(_pos.w * 2.0f * 1.0);
+            
             return rnd_vel;
             //return glm::vec3(0,0,100);
         }
@@ -214,19 +221,19 @@ private:
     vector<glm::vec4> particle_pos;
     vector<glm::vec4> particle_vel;
     galaxy g1 = galaxy(glm::vec3(40, 40, 20), glm::vec3(0, 0, 0), particle_num / 2);
-    galaxy g2 = galaxy(-glm::vec3(40, 20, 20), -glm::vec3(0, 0, 0), particle_num / 2);
+    galaxy g2 = galaxy(-glm::vec3(40, 40, 20), -glm::vec3(0, 0, 0), particle_num / 2);
 
 
 
     void populate_buffers() {
         for (int i = 0; i < particle_num; ++i) {
             if (i <= particle_num / 2) {
-                particle_pos[i] = g1.get_rnd_pos();
-                particle_vel[i] = g1.get_rnd_vel(particle_pos[i]);
+                particle_pos[i] = g1.get_rnd_pos(i);
+                particle_vel[i] = g1.get_rnd_vel(particle_pos[i], i);
             }
             else {
-                particle_pos[i] = g2.get_rnd_pos();
-                particle_vel[i] = g2.get_rnd_vel(particle_pos[i]);
+                particle_pos[i] = g2.get_rnd_pos(i);
+                particle_vel[i] = g2.get_rnd_vel(particle_pos[i], i);
             }
         }
     }
