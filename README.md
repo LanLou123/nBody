@@ -21,3 +21,4 @@ a shared vec4 buffer is also used serving as a cache for threads inside the same
 - Each star was applied with different mass, currently is following a logarithmic distribution, and star size and color varies according to star's mass
 - About galaxy spirals, read about rotation curve is somehow related to star and dark matter mass distributions, so tried to use logarithmic function to simulate, had some similar feature to spiral, but not really there yet, need to read deeper.
 - ![some what spiral like](imgs/spiral.gif)
+- some what spiral like galaxy (SBb?) with a typical bar at the center
