@@ -13,11 +13,12 @@ layout (binding = 1, std430) buffer _particle_vel
 };
 
 uniform int particle_count;
+uniform float unif_timeStep;
 
 void main(){
 
 	float damp = 0.9999;
-	float dt = 0.0001;
+	float dt = unif_timeStep;
 
 
 	uint id = gl_GlobalInvocationID.x;

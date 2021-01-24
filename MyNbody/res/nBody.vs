@@ -26,6 +26,6 @@ void main()
     m = min(1.0, m);
     m_pow = vel.w;
     float size = 1.0;
-    vec3 quad_pos = size * m * qPos.x * camera_axes[0] + size * m * qPos.y * camera_axes[1];
+    vec3 quad_pos = size * pow(m, 3.0f) * qPos.x * camera_axes[0] + size * pow(m, 3.0f) * qPos.y * camera_axes[1];
     gl_Position = projection * view * model * vec4(quad_pos + aPos.xyz, 1.0);
 }

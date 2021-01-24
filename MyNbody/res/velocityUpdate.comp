@@ -15,25 +15,36 @@ layout (binding = 1, std430) buffer _particle_vel
 
 shared vec4 pos_cache[gl_WorkGroupSize.x];
 
+
 vec3 force(in vec3 dis, in float m){
-	return m * dis / pow(dot(dis, dis) + 0.8, 1.3f);
+	vec3 f = m * dis / pow(dot(dis, dis) + 1.28, 1.5f);
+	return f;
+}
+
+float ag(in vec3 dis, in float m){
+	vec3 f = m * dis / pow(dot(dis, dis) + 1.008, 2.3f);
+	float _g = length(f);
+	return _g;
 }
 
 uniform float particle_count;															  //position cache in shared memory for faster access
-
+uniform float unif_timeStep;
 
 void main(){
 
 	float damp = 0.99999;
-	float dt = 0.0001;
-	float G = 150.0f;
+	float dt = unif_timeStep;
+	float G = 160.0f;
+	//float G =  10.f;
 
 	uint id = gl_GlobalInvocationID.x;
+	uint idlocal = gl_LocalInvocationID.x;
 	vec3 pos;
 
 	pos = particle_pos[id].xyz;
 	float m_pow = particle_vel[id].w;
 	vec3 acc = vec3(0);
+	vec3 center_mass = vec3(0);
 	for (uint i = 0;i< gl_NumWorkGroups.x * gl_WorkGroupSize.x; i+= gl_WorkGroupSize.x){
 			pos_cache[gl_LocalInvocationID.x] = particle_pos[gl_LocalInvocationID.x + i]; // execute and store position data for all threads in current work group
 			groupMemoryBarrier();														  // wait until caching is complete for all threads in one work group
@@ -41,10 +52,13 @@ void main(){
 			for(int j = 0;j < gl_WorkGroupSize.x ; ++j){
 				vec4 pos_j = pos_cache[j];
 				acc += G * force(pos_j.xyz - pos, pos_j.w);
+				//acc += acc_cache[j];
+				center_mass += pos_j.xyz * ag(pos_j.xyz - pos, pos_j.w) ;
 			}
 	}
+	center_mass /= gl_NumWorkGroups.x * gl_WorkGroupSize.x;
 	float f = length(acc);
 	vec3 vel_out =  particle_vel[id].xyz * 1.0f + acc * dt;
 	
-	particle_vel[id] = vec4(vel_out, m_pow);
+	particle_vel[id] = vec4(vel_out, f);
 }

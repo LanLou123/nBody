@@ -16,6 +16,14 @@
 #include <iostream>
 #include <math.h>
 #include <random>
+#include <stdio.h>
+
+
+
+
+#include "imgui/imgui.h"
+#include "imgui/imgui_impl_glfw.h"
+#include "imgui/imgui_impl_opengl3.h"
 
 #define CellSize (1.25f)
 #define WORKGROUP_SIZE 256
@@ -26,8 +34,13 @@ static glm::vec2 m_pos = glm::vec2(0.f);
 static glm::vec2 m_delta = glm::vec2(0.f);
 static bool m_pressed = false;
 static int particle_num = WORKGROUP_SIZE * 200;
-static bool paused = false;
 const float PI = 3.14159265358979323846;
+
+struct GUI_ELEMENTS {
+    bool showMouse = true;
+    bool paused = false;
+    float timeStep = 1.f;
+}m_guiElemets;
 
 std::uniform_real_distribution<double> distribution(0.0, 1.0);
 std::default_random_engine generator;
@@ -36,8 +49,8 @@ mt19937 rng;
 #define Render_rs 0
 
 // settings
-const unsigned int SCR_WIDTH = 1920;
-const unsigned int SCR_HEIGHT = 1080;
+const unsigned int SCR_WIDTH = 2560;
+const unsigned int SCR_HEIGHT = 1440;
 
 // camera
 Camera camera(glm::vec3(0.0f, 40.0f, 65.0f));
@@ -55,6 +68,7 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
+void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
 void processInput(GLFWwindow *window);
 unsigned int TextureFromFile(const string path, bool gamma = 0);
 //void renderQuad();
@@ -152,6 +166,7 @@ public:
     }
     void initialize() {
         populate_buffers();
+        //populate_buffers_bulk();
 
         glGenVertexArrays(1, &VAO);
         glBindVertexArray(VAO);
@@ -178,6 +193,25 @@ public:
     }
 public:
     GLuint _particle_pos_buffer, _particle_vel_buffer, VAO;
+    struct bulk {
+        glm::vec3 g_center;
+        glm::vec3 g_velocity;
+        bulk() :g_center(glm::vec3(0)), g_velocity(glm::vec3(0)) {}
+        bulk(glm::vec3 _center, glm::vec3 _velocity) :
+            g_center(_center), g_velocity(_velocity){}
+        glm::vec4 get_rnd_pos(const int i) {
+            float rng1 = distribution(rng);
+            float rng2 = distribution(rng);
+            float rng3 = distribution(rng);
+            float rng4 = distribution(rng);
+            rng4 = pow((rng4 + 1.0f) / 2.0f, 1.0f);// 0.5 ~ 1.0
+            float d = 60.0f;
+            glm::vec4 rnd_pos = glm::vec4(d * (rng1 - 1), d * (rng2 - 1), d * (rng3 - 1), rng4);
+            rnd_pos += glm::vec4(g_center, 0.f);   //galaxy 1 center
+            return rnd_pos;
+        }
+
+    };
     struct galaxy {
         glm::vec3 g_center;
         glm::vec3 g_velocity;
@@ -194,21 +228,15 @@ public:
             rng4 = pow((rng4 + 1.0f) / 2.0f,1.0f);// 0.5 ~ 1.0
             glm::vec4 rnd_pos =  glm::vec4(cos(rng1) * rng2 * 20.0f,rng3 * 1.0f, sin(rng1) * rng2 * 20.0f, rng4);
             rnd_pos += glm::vec4(g_center, 0.f);   //galaxy 1 center
-            if (i == 0 || i == particle_num/2) {
-                rnd_pos.x = g_center.x;
-                rnd_pos.y = g_center.y;
-                rnd_pos.z = g_center.z;
-                rnd_pos.w = 1000.0f; };
             return rnd_pos;
         }
         glm::vec4 get_rnd_vel( const glm::vec4& _pos, const int i) {
             float r =1 - distribution(rng)/50.0f;
             glm::vec4 tang_vel = glm::vec4(glm::normalize(glm::cross(glm::vec3(0, 1, 0), glm::vec3(_pos) - g_center)), 0.0f);
             float dis = glm::distance(glm::vec3(_pos), g_center);
-            glm::vec4 rnd_vel = tang_vel * (dis) * 60.f;
+            glm::vec4 rnd_vel = tang_vel * (dis) * 25.f;
 
             rnd_vel += glm::vec4(g_velocity, 0.0f);   //galaxy 1 center
-            if (i == 0 || i == particle_num / 2) rnd_vel = glm::vec4(0);
             rnd_vel.w = log(_pos.w * 2.0f * 1.0);
             
             return rnd_vel;
@@ -222,8 +250,14 @@ private:
     vector<glm::vec4> particle_vel;
     galaxy g1 = galaxy(glm::vec3(40, 40, 20), glm::vec3(0, 0, 0), particle_num / 2);
     galaxy g2 = galaxy(-glm::vec3(40, 40, 20), -glm::vec3(0, 0, 0), particle_num / 2);
+    bulk b1 = bulk(glm::vec3(0), glm::vec3(0));
 
-
+    void populate_buffers_bulk() {
+        for (int i = 0; i < particle_num; ++i) {
+            particle_pos[i] = b1.get_rnd_pos(i);
+            particle_vel[i] = glm::vec4(0);
+        }
+    }
 
     void populate_buffers() {
         for (int i = 0; i < particle_num; ++i) {
@@ -341,6 +375,7 @@ struct Quad {
                 glVertexAttribDivisor(3, 1);
             }
         }
+
         glBindVertexArray(quadVAO);
         if (render_instanced)
             glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, particle_num);
@@ -403,9 +438,10 @@ int main()
     glfwSetCursorPosCallback(window, mouse_callback);
     glfwSetMouseButtonCallback(window, mouse_button_callback);
     glfwSetScrollCallback(window, scroll_callback);
+    glfwSetKeyCallback(window, key_callback);
 
     // tell GLFW to capture our mouse
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 
     // glad: load all OpenGL function pointers
     // ---------------------------------------
@@ -417,6 +453,31 @@ int main()
 
     // tell stb_image.h to flip loaded texture's on the y-axis (before loading model).
     stbi_set_flip_vertically_on_load(true);
+
+
+    // IMGUI 
+    // =======================================================
+    // Setup Dear ImGui context
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+
+    // Setup Dear ImGui style
+    ImGui::StyleColorsDark();
+    //ImGui::StyleColorsClassic();
+
+    // Setup Platform/Renderer backends
+    ImGui_ImplGlfw_InitForOpenGL(window, true);
+    const char* glsl_version = NULL;
+    ImGui_ImplOpenGL3_Init(glsl_version);
+
+    // Our state
+    bool show_demo_window = true;
+    bool show_another_window = false;
+    ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+    // =======================================================
 
     // configure global opengl state
     // -----------------------------
@@ -480,6 +541,30 @@ int main()
         // input
         // -----
         processInput(window);
+
+        // imGUI 
+        // ------------------------------------
+        // Start the Dear ImGui frame
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+        //if (show_demo_window)
+        //    ImGui::ShowDemoWindow(&show_demo_window);
+        // Rendering
+
+        {
+            ImGui::Begin("parameters");
+            ImGui::Text("press 'LEFT_ALT' to choose to use mouse cursor or not.");
+            ImGui::Text("press 'C' to pause the sim.");
+            ImGui::Checkbox("Pause", &m_guiElemets.paused);
+            ImGui::SliderFloat("timeStep", &m_guiElemets.timeStep, 1.f, 10.f);
+            //ImGui::DragFloat("timeStep", &m_guiElemets.timeStep, 0.0001f, 0.0001f, 0.001f);
+
+            ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+            ImGui::End();
+        }
+        ImGui::Render();
+        // ------------------------------------
    
 
         glViewport(0, 0, SCR_WIDTH * dy_factor, SCR_HEIGHT * dy_factor);
@@ -496,23 +581,32 @@ int main()
         lastFrame = currentFrame;
         //std::cout << "GLFW time : " << deltaTime << std::endl;
 
+        if (m_guiElemets.showMouse) {
+            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+        }
+        else {
+            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+        }
 
+        if (!m_guiElemets.paused) {
+            // compute particles
+            // -----
+            shaderVelocityUpdate.use();
+            shaderVelocityUpdate.setInt("particle_count", particle_num);
+            shaderVelocityUpdate.setFloat("unif_timeStep", m_guiElemets.timeStep / 10000.f);
+            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, myNbody._particle_pos_buffer);
+            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, myNbody._particle_vel_buffer);
+            glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+            glDispatchCompute(particle_num / (WORKGROUP_SIZE), 1, 1);
 
-        // compute particles
-        // -----
-        shaderVelocityUpdate.use();
-        shaderVelocityUpdate.setInt("particle_count", particle_num);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, myNbody._particle_pos_buffer);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, myNbody._particle_vel_buffer);
-        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-        glDispatchCompute(particle_num / (WORKGROUP_SIZE), 1, 1);
-
-        shaderPositionUpdate.use();
-        shaderPositionUpdate.setInt("particle_count", particle_num);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, myNbody._particle_pos_buffer);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, myNbody._particle_vel_buffer);
-        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-        glDispatchCompute(particle_num / (WORKGROUP_SIZE), 1, 1);
+            shaderPositionUpdate.use();
+            shaderPositionUpdate.setInt("particle_count", particle_num);
+            shaderPositionUpdate.setFloat("unif_timeStep", m_guiElemets.timeStep / 10000.f);
+            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, myNbody._particle_pos_buffer);
+            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, myNbody._particle_vel_buffer);
+            glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+            glDispatchCompute(particle_num / (WORKGROUP_SIZE), 1, 1);
+        }
 
 
 
@@ -588,11 +682,17 @@ int main()
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
+
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
 
  
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
+
     glfwTerminate();
     //_CrtDumpMemoryLeaks();
     return 0;
@@ -613,8 +713,12 @@ void processInput(GLFWwindow *window)
         camera.ProcessKeyboard(LEFT, deltaTime);
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
         camera.ProcessKeyboard(RIGHT, deltaTime);
-    if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS)
-        paused = !paused;
+    if (glfwGetKey(window, GLFW_KEY_LEFT_ALT) == GLFW_PRESS) {
+        m_guiElemets.showMouse = false;
+    }else {
+        m_guiElemets.showMouse = true;
+    }
+    ImGui::CaptureMouseFromApp(m_guiElemets.showMouse);
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
@@ -642,8 +746,9 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 
     lastX = xpos;
     lastY = ypos;
-
-    camera.ProcessMouseMovement(xoffset, yoffset);
+    if (!m_guiElemets.showMouse) {
+        camera.ProcessMouseMovement(xoffset, yoffset);
+    }
 }
 
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
@@ -658,6 +763,13 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
     camera.ProcessMouseScroll(yoffset);
+}
+
+void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+    if (key == GLFW_KEY_C && action == GLFW_PRESS) {
+        m_guiElemets.paused = !m_guiElemets.paused;
+    }
+
 }
 
 unsigned int TextureFromFile(const string path, bool gamma )

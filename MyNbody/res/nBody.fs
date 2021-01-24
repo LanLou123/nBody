@@ -16,7 +16,7 @@ void main()
     float star_f = length(vel_);
 
     float l2c = distance(vec2(0.5, 0.5), TexCoords);
-    l2c = 0.7f - l2c;
+    l2c = max(0.6f - l2c, 0.0f);
 
     vec3 star_col_0 = vec3(1, 0, 0);
     vec3 star_col_1 = vec3(1, 0.2, 0);
@@ -59,7 +59,7 @@ void main()
         _star_col = star_col_10;
 	}
 
-    Color = vec4(10.0f * l2c *(1.f + 1.0f) /2.0  * _star_col * 1.2 , l2c);
+    Color = vec4(30.0f * l2c *(1.f + 1.0f) /2.0   * _star_col * 1.2 , l2c);
 
     float brightness = dot(Color.rgb, vec3(0.2126, 0.7152, 0.0722));
 
