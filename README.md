@@ -19,6 +19,6 @@ a shared vec4 buffer is also used serving as a cache for threads inside the same
 - The reason why we choose tile based method is due to the memory bandwith limitation of GPUs according to Gem, as for OpenGL, the limitation is on the size of workgroup, which I choosed to be 256.
 - Bloom was also implemented by using gaussian blur of brightness ping-pong textures attached to a framebuffer, referecned [online Gaussian Kernel Calculator](http://dev.theomader.com/gaussian-kernel-calculator/)
 - Each star was applied with different mass, currently is following a logarithmic distribution, and star size and color varies according to star's mass
-- About galaxy spirals, read about rotation curve is somehow related to star and dark matter mass distributions, so tried to use logarithmic function to simulate, had some similar feature to spiral, but not really there yet, need to read deeper.
+- About galaxy spirals, read about density wave is somehow related to star and dark matter mass distributions, so randomly tried to use a logarithmic function to simulate, unexpectedly had some similar feature to spiral, but not really there yet, need to read deeper.
 - ![some what spiral like](imgs/spiral.gif)
 - some what spiral like galaxy (SBb?) with a typical bar at the center
